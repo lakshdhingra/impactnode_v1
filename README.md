@@ -1,16 +1,19 @@
-# impactnode_v1
+# ImpactNode SOS 🚨
 
-A new Flutter project.
+A Flutter-based accident detection and SOS application.
 
-## Getting Started
+## Features
+- Crash detection using accelerometer & gyroscope
+- Automatic SOS call
+- SMS with Google Maps location
+- Background monitoring
+- Multi-contact alert system
 
-This project is a starting point for a Flutter application.
+## Tech Stack
+- Flutter
+- sensors_plus
+- geolocator
+- flutter_background_service
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Status
+Prototype / Hackathon build
