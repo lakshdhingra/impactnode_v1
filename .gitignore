@@ -1,0 +1,19 @@
+# Flutter
+.dart_tool/
+build/
+.pub/
+.packages
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Firebase
+android/app/google-services.json
