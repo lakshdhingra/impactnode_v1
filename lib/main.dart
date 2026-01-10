@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:math';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'auth_page.dart';
 
 import 'background_service.dart';
 
@@ -30,6 +31,12 @@ void main() async {
     ),
   );
 
+  await Supabase.initialize(
+    url: 'https://ajpyceoclvhnngbityaz.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqcHljZW9jbHZobm5nYml0eWF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNTkwNDAsImV4cCI6MjA3OTczNTA0MH0.QEk5NmHF-vVddzjTv4lLsMK9z9UDPZZs36H1qSkHz_o',
+  );
+
   runApp(const MyApp());
 }
 
@@ -40,7 +47,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: CrashSOSScreen(),
+      home: const AuthPage(),
     );
   }
 }
@@ -145,29 +152,28 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
     await launchUrl(Uri(scheme: 'tel', path: '112'));
   }
 
-Future<void> _sendSMS() async {
-  if (lastPos == null) return;
+  Future<void> _sendSMS() async {
+    if (lastPos == null) return;
 
-  final link =
-      "https://maps.google.com/?q=${lastPos!.latitude},${lastPos!.longitude}";
+    final link =
+        "https://maps.google.com/?q=${lastPos!.latitude},${lastPos!.longitude}";
 
-  final message =
-      "EMERGENCY ALERT\n"
-      "Possible accident detected.\n\n"
-      "Location:\n$link";
+    final message =
+        "EMERGENCY ALERT\n"
+        "Possible accident detected.\n\n"
+        "Location:\n$link";
 
-  for (final number in contacts) {
-    final Uri uri = Uri.parse(
-      "smsto:$number?body=${Uri.encodeComponent(message)}",
-    );
+    for (final number in contacts) {
+      final Uri uri = Uri.parse(
+        "smsto:$number?body=${Uri.encodeComponent(message)}",
+      );
 
-    await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication, // 🔴 REQUIRED
-    );
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication, // 🔴 REQUIRED
+      );
+    }
   }
-}
-
 
   void _cancelSOS() {
     timer?.cancel();
