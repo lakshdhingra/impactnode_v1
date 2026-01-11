@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'auth_page.dart';
 
+import 'auth_page.dart';
 import 'background_service.dart';
+import 'SOS.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,17 +42,121 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+/* ───────────────────────── APP ROOT ───────────────────────── */
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  static _MyAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>()!;
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode themeMode = ThemeMode.light;
+
+  void toggleTheme() {
+    setState(() {
+      themeMode =
+          themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
       home: const AuthPage(),
+      routes: {
+        '/sos': (context) => const SOSPreview(),
+      },
     );
   }
 }
+
+/* ───────────────────────── DRAWER ───────────────────────── */
+
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = MyApp.of(context);
+
+    return Drawer(
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Colors.blue),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Image.asset(
+                  'assets/logo.png',
+                  height: 60,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "ImpactNode",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.warning),
+            title: const Text("SOS"),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/sos');
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.dark_mode),
+            title: const Text("Theme"),
+            onTap: () {
+              Navigator.pop(context);
+              appState.toggleTheme();
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text("Help"),
+            onTap: () {
+              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (_) => const AlertDialog(
+                  title: Text("Help"),
+                  content: Text(
+                    "ImpactNode automatically detects vehicle crashes.\n\n"
+                    "If a crash is detected, SOS is triggered after a countdown.\n"
+                    "You can cancel the SOS during this time.",
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ───────────────────────── CRASH SOS SCREEN ───────────────────────── */
 
 class CrashSOSScreen extends StatefulWidget {
   const CrashSOSScreen({super.key});
@@ -69,7 +175,11 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
   Timer? timer;
   Position? lastPos;
 
-  final List<String> contacts = ["9999999999", "8888888888", "7777777777"];
+  final List<String> contacts = [
+    "9999999999",
+    "8888888888",
+    "7777777777",
+  ];
 
   @override
   void initState() {
@@ -89,14 +199,16 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
 
     LocationPermission loc = await Geolocator.checkPermission();
     if (loc == LocationPermission.denied) {
-      loc = await Geolocator.requestPermission();
+      await Geolocator.requestPermission();
     }
   }
 
   void _startSensors() {
     accelerometerEvents.listen((e) {
       final mag = sqrt(
-        pow(e.x / 9.8, 2) + pow(e.y / 9.8, 2) + pow(e.z / 9.8, 2),
+        pow(e.x / 9.8, 2) +
+            pow(e.y / 9.8, 2) +
+            pow(e.z / 9.8, 2),
       );
       gForce = (mag - 1).abs();
       _checkCrash();
@@ -112,11 +224,8 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
 
   Future<void> _startLocation() async {
     LocationPermission permission = await Geolocator.checkPermission();
-
     if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return;
-    }
+        permission == LocationPermission.deniedForever) return;
 
     Geolocator.getPositionStream().listen((p) {
       lastPos = p;
@@ -159,19 +268,13 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
         "https://maps.google.com/?q=${lastPos!.latitude},${lastPos!.longitude}";
 
     final message =
-        "EMERGENCY ALERT\n"
-        "Possible accident detected.\n\n"
-        "Location:\n$link";
+        "EMERGENCY ALERT\nPossible accident detected.\n\nLocation:\n$link";
 
     for (final number in contacts) {
-      final Uri uri = Uri.parse(
+      final uri = Uri.parse(
         "smsto:$number?body=${Uri.encodeComponent(message)}",
       );
-
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication, // 🔴 REQUIRED
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -184,7 +287,19 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ImpactNode – SOS")),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 28,
+            ),
+            const SizedBox(width: 10),
+            const Text("ImpactNode – Crash SOS"),
+          ],
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: sosActive
@@ -206,21 +321,12 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
               )
             : Column(
                 children: [
-                  _card(
-                    Icons.speed,
-                    "Speed",
-                    "${speed.toStringAsFixed(1)} km/h",
-                  ),
-                  _card(
-                    Icons.flash_on,
-                    "Impact",
-                    "${gForce.toStringAsFixed(2)} g",
-                  ),
-                  _card(
-                    Icons.rotate_right,
-                    "Rotation",
-                    rotation.toStringAsFixed(2),
-                  ),
+                  _card(Icons.speed, "Speed",
+                      "${speed.toStringAsFixed(1)} km/h"),
+                  _card(Icons.flash_on, "Impact",
+                      "${gForce.toStringAsFixed(2)} g"),
+                  _card(Icons.rotate_right, "Rotation",
+                      rotation.toStringAsFixed(2)),
                   const Spacer(),
                   _btn(Icons.call, "CALL SOS", Colors.red, _callSOS),
                   const SizedBox(height: 10),
@@ -241,7 +347,8 @@ class _CrashSOSScreenState extends State<CrashSOSScreen> {
     );
   }
 
-  Widget _btn(IconData icon, String text, Color color, VoidCallback onTap) {
+  Widget _btn(
+      IconData icon, String text, Color color, VoidCallback onTap) {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon),

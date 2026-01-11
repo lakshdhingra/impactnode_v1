@@ -38,9 +38,10 @@ dependencies:
   url_launcher: ^6.2.5
   flutter_background_service: ^5.0.1
   flutter_background_service_android: ^6.0.1
-  permission_handler: ^11.0.1
-  supabase_flutter: ^2.5.0  
-
+  permission_handler: ^11.0.1 
+  supabase_flutter: ^2.5.6
+  google_sign_in: ^6.2.1
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
